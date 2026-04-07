@@ -8782,7 +8782,8 @@ final class Workspace: Identifiable, ObservableObject {
         from panelId: UUID,
         orientation: SplitOrientation,
         insertFirst: Bool = false,
-        focus: Bool = true
+        focus: Bool = true,
+        initialCommand: String? = nil
     ) -> TerminalPanel? {
         // Find the pane containing the source panel
         guard let sourceTabId = surfaceIdFromPanelId(panelId) else { return nil }
@@ -8797,7 +8798,10 @@ final class Workspace: Identifiable, ObservableObject {
 
         guard let paneId = sourcePaneId else { return nil }
         let inheritedConfig = inheritedTerminalConfig(preferredPanelId: panelId, inPane: paneId)
-        let remoteTerminalStartupCommand = remoteTerminalStartupCommand()
+        // Explicit caller-provided initialCommand wins over the workspace's
+        // default remote-terminal startup command. Used by tmux attach
+        // (feature 707-tmux-control-panel).
+        let remoteTerminalStartupCommand = initialCommand ?? remoteTerminalStartupCommand()
 
         // Inherit working directory: prefer the source panel's reported cwd,
         // then its requested startup cwd if shell integration has not reported
@@ -8897,6 +8901,31 @@ final class Workspace: Identifiable, ObservableObject {
         )
 
         return newPanel
+    }
+
+    /// Attach a tmux session by opening a new horizontal split running
+    /// `tmux attach-session -t <name>` in the new pane.
+    ///
+    /// Part of feature 707-tmux-control-panel. The session sharing semantics
+    /// match standard `tmux attach` behavior — if the session is already
+    /// attached elsewhere, both clients see the same content.
+    ///
+    /// Returns the created `TerminalPanel`, or nil if there's no focused
+    /// panel to split from.
+    @discardableResult
+    func attachTmuxSession(named sessionName: String) -> TerminalPanel? {
+        guard let sourcePanelId = focusedPanelId else { return nil }
+        let attachCommand = TmuxService.shared.attachCommand(for: sessionName)
+#if DEBUG
+        dlog("tmux.attach session=\(sessionName) sourcePanel=\(sourcePanelId.uuidString.prefix(5))")
+#endif
+        return newTerminalSplit(
+            from: sourcePanelId,
+            orientation: .horizontal,
+            insertFirst: false,
+            focus: true,
+            initialCommand: attachCommand
+        )
     }
 
     /// Create a new surface (nested tab) in the specified pane with a terminal panel.

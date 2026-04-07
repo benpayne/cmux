@@ -87051,6 +87051,178 @@
           }
         }
       }
+    },
+    "tmux.sidebar.sectionTitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "tmux Sessions"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "tmux セッション"
+          }
+        }
+      }
+    },
+    "tmux.sidebar.empty": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No tmux sessions"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "tmux セッションがありません"
+          }
+        }
+      }
+    },
+    "tmux.sidebar.windowCount.one": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 window"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 ウィンドウ"
+          }
+        }
+      }
+    },
+    "tmux.sidebar.windowCount.many": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d windows"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d ウィンドウ"
+          }
+        }
+      }
+    },
+    "tmux.sidebar.tooltip.attached": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ — attached (%d clients)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ — 接続中 (%d クライアント)"
+          }
+        }
+      }
+    },
+    "tmux.sidebar.tooltip.detached": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ — detached"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ — 切断中"
+          }
+        }
+      }
+    },
+    "tmux.menu.newSession": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {"stringUnit": {"state": "translated", "value": "New tmux Session"}},
+        "ja": {"stringUnit": {"state": "translated", "value": "新しい tmux セッション"}}
+      }
+    },
+    "tmux.menu.rename": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {"stringUnit": {"state": "translated", "value": "Rename…"}},
+        "ja": {"stringUnit": {"state": "translated", "value": "名前を変更…"}}
+      }
+    },
+    "tmux.menu.kill": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {"stringUnit": {"state": "translated", "value": "Kill Session…"}},
+        "ja": {"stringUnit": {"state": "translated", "value": "セッションを終了…"}}
+      }
+    },
+    "tmux.create.placeholder": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {"stringUnit": {"state": "translated", "value": "Session name (optional)"}},
+        "ja": {"stringUnit": {"state": "translated", "value": "セッション名 (任意)"}}
+      }
+    },
+    "tmux.error.duplicateName": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {"stringUnit": {"state": "translated", "value": "A session with that name already exists."}},
+        "ja": {"stringUnit": {"state": "translated", "value": "その名前のセッションは既に存在します。"}}
+      }
+    },
+    "tmux.error.killFailed": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {"stringUnit": {"state": "translated", "value": "Failed to kill session"}},
+        "ja": {"stringUnit": {"state": "translated", "value": "セッションの終了に失敗しました"}}
+      }
+    },
+    "tmux.kill.confirmTitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {"stringUnit": {"state": "translated", "value": "Kill tmux session?"}},
+        "ja": {"stringUnit": {"state": "translated", "value": "tmux セッションを終了しますか？"}}
+      }
+    },
+    "tmux.kill.confirmMessage": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {"stringUnit": {"state": "translated", "value": "Session \"%@\" and all of its windows will be destroyed."}},
+        "ja": {"stringUnit": {"state": "translated", "value": "セッション「%@」とそのすべてのウィンドウが破棄されます。"}}
+      }
+    },
+    "tmux.kill.confirm": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {"stringUnit": {"state": "translated", "value": "Kill"}},
+        "ja": {"stringUnit": {"state": "translated", "value": "終了"}}
+      }
+    },
+    "common.cancel": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {"stringUnit": {"state": "translated", "value": "Cancel"}},
+        "ja": {"stringUnit": {"state": "translated", "value": "キャンセル"}}
+      }
     }
   }
 }

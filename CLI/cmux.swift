@@ -2192,6 +2192,121 @@ struct CMUXCLI {
         case "refresh-surfaces":
             let response = try sendV1Command("refresh_surfaces", client: client)
             print(response)
+
+        // tmux commands (feature 707-tmux-control-panel)
+        // List/create/kill/rename run tmux directly via TmuxService — no need
+        // for the cmux app to be running. Attach forwards to the V2 socket
+        // because it needs to open a pane inside a running cmux instance.
+        case "tmux-list":
+            do {
+                let sessions = try TmuxService.shared.listSessions()
+                if jsonOutput {
+                    let formatter = ISO8601DateFormatter()
+                    formatter.formatOptions = [.withInternetDateTime]
+                    let payload: [String: Any] = [
+                        "ok": true,
+                        "sessions": sessions.map { s -> [String: Any] in
+                            [
+                                "name": s.name,
+                                "windows": s.windowCount,
+                                "created": formatter.string(from: s.createdAt),
+                                "attached": s.isAttached,
+                                "clients": s.clientCount,
+                            ]
+                        }
+                    ]
+                    print(jsonString(payload))
+                } else if sessions.isEmpty {
+                    print("No tmux sessions")
+                } else {
+                    for s in sessions {
+                        let marker = s.isAttached ? "*" : " "
+                        let windowLabel = s.windowCount == 1 ? "1 window" : "\(s.windowCount) windows"
+                        print("\(marker) \(s.name)  [\(windowLabel)]")
+                    }
+                }
+            } catch TmuxServiceError.notInstalled {
+                throw CLIError(message: "tmux is not installed on PATH")
+            }
+
+        case "tmux-create":
+            let name = optionValue(commandArgs, name: "--name") ?? commandArgs.first
+            do {
+                let session = try TmuxService.shared.createSession(name: name)
+                if jsonOutput {
+                    let formatter = ISO8601DateFormatter()
+                    formatter.formatOptions = [.withInternetDateTime]
+                    print(jsonString([
+                        "ok": true,
+                        "session": [
+                            "name": session.name,
+                            "windows": session.windowCount,
+                            "created": formatter.string(from: session.createdAt),
+                            "attached": session.isAttached,
+                            "clients": session.clientCount,
+                        ]
+                    ]))
+                } else {
+                    print("Created session: \(session.name)")
+                }
+            } catch TmuxServiceError.notInstalled {
+                throw CLIError(message: "tmux is not installed on PATH")
+            } catch TmuxServiceError.duplicateName(let n) {
+                throw CLIError(message: "duplicate session name: \(n)")
+            }
+
+        case "tmux-kill":
+            guard let name = optionValue(commandArgs, name: "--name") ?? commandArgs.first else {
+                throw CLIError(message: "tmux-kill requires --name <session>")
+            }
+            do {
+                try TmuxService.shared.killSession(name: name)
+                if jsonOutput {
+                    print(jsonString(["ok": true]))
+                } else {
+                    print("Killed session: \(name)")
+                }
+            } catch TmuxServiceError.notInstalled {
+                throw CLIError(message: "tmux is not installed on PATH")
+            } catch TmuxServiceError.sessionNotFound(let n) {
+                throw CLIError(message: "session not found: \(n)")
+            }
+
+        case "tmux-rename":
+            guard let name = optionValue(commandArgs, name: "--name") else {
+                throw CLIError(message: "tmux-rename requires --name <current> --new-name <new>")
+            }
+            guard let newName = optionValue(commandArgs, name: "--new-name") else {
+                throw CLIError(message: "tmux-rename requires --new-name <new>")
+            }
+            do {
+                try TmuxService.shared.renameSession(oldName: name, newName: newName)
+                if jsonOutput {
+                    print(jsonString(["ok": true, "name": newName]))
+                } else {
+                    print("Renamed \(name) → \(newName)")
+                }
+            } catch TmuxServiceError.notInstalled {
+                throw CLIError(message: "tmux is not installed on PATH")
+            } catch TmuxServiceError.duplicateName(let n) {
+                throw CLIError(message: "duplicate session name: \(n)")
+            } catch TmuxServiceError.sessionNotFound(let n) {
+                throw CLIError(message: "session not found: \(n)")
+            }
+
+        case "tmux-attach":
+            guard let name = optionValue(commandArgs, name: "--name") ?? commandArgs.first else {
+                throw CLIError(message: "tmux-attach requires --name <session>")
+            }
+            let workspaceArg = workspaceFromArgsOrEnv(commandArgs, windowOverride: windowId)
+            var params: [String: Any] = ["name": name]
+            let wsId = try normalizeWorkspaceHandle(workspaceArg, client: client)
+            if let wsId { params["workspace_id"] = wsId }
+            let payload = try client.sendV2(method: "tmux.attach", params: params)
+            printV2Payload(payload, jsonOutput: jsonOutput, idFormat: idFormat,
+                           fallbackText: v2OKSummary(payload, idFormat: idFormat,
+                                                     kinds: ["surface", "workspace"]))
+
         case "reload-config":
             if let unexpected = commandArgs.first {
                 throw CLIError(message: "reload-config does not accept arguments. Unexpected argument '\(unexpected)'")
@@ -3196,6 +3311,14 @@ struct CMUXCLI {
         return Int(String(pieces[1])) != nil
     }
 
+    /// Convert a user-supplied 1-based position (matching Cmd+N keyboard
+    /// shortcuts) to the 0-based internal V2 index that `*.list` returns.
+    /// Returns nil if the input is not a positive integer.
+    private func userPositionToV2Index(_ raw: String) -> Int? {
+        guard let position = Int(raw), position >= 1 else { return nil }
+        return position - 1
+    }
+
     private func normalizeWindowHandle(_ raw: String?, client: SocketClient, allowCurrent: Bool = false) throws -> String? {
         guard let raw else {
             if !allowCurrent { return nil }
@@ -3208,8 +3331,10 @@ struct CMUXCLI {
         if isUUID(trimmed) || isHandleRef(trimmed) {
             return trimmed
         }
-        guard let wantedIndex = Int(trimmed) else {
-            throw CLIError(message: "Invalid window handle: \(trimmed) (expected UUID, ref like window:1, or index)")
+        // Integer arg is interpreted as a 1-based position to match Cmd+N
+        // keyboard shortcuts. Internal V2 index is 0-based.
+        guard let wantedIndex = userPositionToV2Index(trimmed) else {
+            throw CLIError(message: "Invalid window handle: \(trimmed) (expected UUID, ref like window:1, or 1-based position)")
         }
 
         let listed = try client.sendV2(method: "window.list")
@@ -3217,7 +3342,7 @@ struct CMUXCLI {
         for item in windows where intFromAny(item["index"]) == wantedIndex {
             return (item["ref"] as? String) ?? (item["id"] as? String)
         }
-        throw CLIError(message: "Window index not found")
+        throw CLIError(message: "Window position \(trimmed) not found")
     }
 
     private func normalizeWorkspaceHandle(
@@ -3237,8 +3362,10 @@ struct CMUXCLI {
         if isUUID(trimmed) || isHandleRef(trimmed) {
             return trimmed
         }
-        guard let wantedIndex = Int(trimmed) else {
-            throw CLIError(message: "Invalid workspace handle: \(trimmed) (expected UUID, ref like workspace:1, or index)")
+        // Integer arg is interpreted as a 1-based position to match Cmd+N
+        // keyboard shortcuts (Cmd+1 = workspace 1 in the sidebar).
+        guard let wantedIndex = userPositionToV2Index(trimmed) else {
+            throw CLIError(message: "Invalid workspace handle: \(trimmed) (expected UUID, ref like workspace:1, or 1-based position)")
         }
 
         var params: [String: Any] = [:]
@@ -3250,7 +3377,7 @@ struct CMUXCLI {
         for item in items where intFromAny(item["index"]) == wantedIndex {
             return (item["ref"] as? String) ?? (item["id"] as? String)
         }
-        throw CLIError(message: "Workspace index not found")
+        throw CLIError(message: "Workspace position \(trimmed) not found")
     }
 
     private func normalizePaneHandle(
@@ -3271,8 +3398,10 @@ struct CMUXCLI {
         if isUUID(trimmed) || isHandleRef(trimmed) {
             return trimmed
         }
-        guard let wantedIndex = Int(trimmed) else {
-            throw CLIError(message: "Invalid pane handle: \(trimmed) (expected UUID, ref like pane:1, or index)")
+        // Integer arg is interpreted as a 1-based position. Internal V2
+        // index is 0-based.
+        guard let wantedIndex = userPositionToV2Index(trimmed) else {
+            throw CLIError(message: "Invalid pane handle: \(trimmed) (expected UUID, ref like pane:1, or 1-based position)")
         }
 
         var params: [String: Any] = [:]
@@ -3284,7 +3413,7 @@ struct CMUXCLI {
         for item in items where intFromAny(item["index"]) == wantedIndex {
             return (item["ref"] as? String) ?? (item["id"] as? String)
         }
-        throw CLIError(message: "Pane index not found")
+        throw CLIError(message: "Pane position \(trimmed) not found")
     }
 
     private func normalizeSurfaceHandle(
@@ -3305,8 +3434,10 @@ struct CMUXCLI {
         if isUUID(trimmed) || isHandleRef(trimmed) {
             return trimmed
         }
-        guard let wantedIndex = Int(trimmed) else {
-            throw CLIError(message: "Invalid surface handle: \(trimmed) (expected UUID, ref like surface:1, or index)")
+        // Integer arg is interpreted as a 1-based position. Internal V2
+        // index is 0-based.
+        guard let wantedIndex = userPositionToV2Index(trimmed) else {
+            throw CLIError(message: "Invalid surface handle: \(trimmed) (expected UUID, ref like surface:1, or 1-based position)")
         }
 
         var params: [String: Any] = [:]
@@ -3318,7 +3449,7 @@ struct CMUXCLI {
         for item in items where intFromAny(item["index"]) == wantedIndex {
             return (item["ref"] as? String) ?? (item["id"] as? String)
         }
-        throw CLIError(message: "Surface index not found")
+        throw CLIError(message: "Surface position \(trimmed) not found")
     }
 
     private func canonicalSurfaceHandleFromTabInput(_ value: String) -> String {

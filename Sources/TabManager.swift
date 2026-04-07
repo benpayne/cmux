@@ -3946,6 +3946,17 @@ class TabManager: ObservableObject {
         )?.id
     }
 
+    /// Open a new pane attached to the named tmux session in the currently
+    /// selected workspace. Part of feature 707-tmux-control-panel.
+    ///
+    /// No-op if no workspace is selected. The session is attached using
+    /// standard `tmux attach` semantics (shared if already attached elsewhere).
+    @discardableResult
+    func attachTmuxSession(named sessionName: String) -> UUID? {
+        guard let workspace = selectedTab else { return nil }
+        return workspace.attachTmuxSession(named: sessionName)?.id
+    }
+
     /// Move focus in the specified direction
     func moveSplitFocus(tabId: UUID, surfaceId: UUID, direction: NavigationDirection) -> Bool {
         guard let tab = tabs.first(where: { $0.id == tabId }) else { return false }

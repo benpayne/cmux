@@ -133,6 +133,13 @@
 					8C4BBF2DEF6DF93F395A9EE7 /* TerminalControllerSocketSecurityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 491751CE2321474474F27DCF /* TerminalControllerSocketSecurityTests.swift */; };
 					2BB56A710BB1FC50367E5BCF /* TabManagerSessionSnapshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10D684CFFB8CDEF89CE2D9E1 /* TabManagerSessionSnapshotTests.swift */; };
 					C1A2B3C4D5E6F70800000001 /* CmuxConfigTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1A2B3C4D5E6F70800000002 /* CmuxConfigTests.swift */; };
+					A5001710 /* TmuxSessionInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5001700 /* TmuxSessionInfo.swift */; };
+					A5001711 /* TmuxService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5001701 /* TmuxService.swift */; };
+					A5001712 /* TmuxSidebarState.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5001702 /* TmuxSidebarState.swift */; };
+				A5001713 /* TmuxSidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5001703 /* TmuxSidebarView.swift */; };
+					A5001721 /* TmuxServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5001720 /* TmuxServiceTests.swift */; };
+				A5001730 /* TmuxSessionInfo.swift in Sources (CLI) */ = {isa = PBXBuildFile; fileRef = A5001700 /* TmuxSessionInfo.swift */; };
+				A5001731 /* TmuxService.swift in Sources (CLI) */ = {isa = PBXBuildFile; fileRef = A5001701 /* TmuxService.swift */; };
 		/* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -330,6 +337,11 @@
 				491751CE2321474474F27DCF /* TerminalControllerSocketSecurityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalControllerSocketSecurityTests.swift; sourceTree = "<group>"; };
 				10D684CFFB8CDEF89CE2D9E1 /* TabManagerSessionSnapshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabManagerSessionSnapshotTests.swift; sourceTree = "<group>"; };
 				C1A2B3C4D5E6F70800000002 /* CmuxConfigTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CmuxConfigTests.swift; sourceTree = "<group>"; };
+				A5001700 /* TmuxSessionInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tmux/TmuxSessionInfo.swift; sourceTree = "<group>"; };
+				A5001701 /* TmuxService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tmux/TmuxService.swift; sourceTree = "<group>"; };
+				A5001702 /* TmuxSidebarState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tmux/TmuxSidebarState.swift; sourceTree = "<group>"; };
+				A5001703 /* TmuxSidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tmux/TmuxSidebarView.swift; sourceTree = "<group>"; };
+				A5001720 /* TmuxServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TmuxServiceTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -516,6 +528,10 @@
 				A5001651 /* CmuxConfig.swift */,
 				A5001653 /* CmuxConfigExecutor.swift */,
 				A5001655 /* CmuxDirectoryTrust.swift */,
+				A5001700 /* TmuxSessionInfo.swift */,
+				A5001701 /* TmuxService.swift */,
+				A5001702 /* TmuxSidebarState.swift */,
+				A5001703 /* TmuxSidebarView.swift */,
 			);
 			path = Sources;
 			sourceTree = "<group>";
@@ -609,6 +625,7 @@
 					491751CE2321474474F27DCF /* TerminalControllerSocketSecurityTests.swift */,
 					10D684CFFB8CDEF89CE2D9E1 /* TabManagerSessionSnapshotTests.swift */,
 					C1A2B3C4D5E6F70800000002 /* CmuxConfigTests.swift */,
+					A5001720 /* TmuxServiceTests.swift */,
 				);
 				path = cmuxTests;
 				sourceTree = "<group>";
@@ -840,6 +857,10 @@
 				A5001650 /* CmuxConfig.swift in Sources */,
 			A5001652 /* CmuxConfigExecutor.swift in Sources */,
 			A5001654 /* CmuxDirectoryTrust.swift in Sources */,
+			A5001710 /* TmuxSessionInfo.swift in Sources */,
+			A5001711 /* TmuxService.swift in Sources */,
+			A5001712 /* TmuxSidebarState.swift in Sources */,
+			A5001713 /* TmuxSidebarView.swift in Sources */,
 		);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -908,6 +929,7 @@
 					8C4BBF2DEF6DF93F395A9EE7 /* TerminalControllerSocketSecurityTests.swift in Sources */,
 					2BB56A710BB1FC50367E5BCF /* TabManagerSessionSnapshotTests.swift in Sources */,
 					C1A2B3C4D5E6F70800000001 /* CmuxConfigTests.swift in Sources */,
+					A5001721 /* TmuxServiceTests.swift in Sources */,
 				);
 				runOnlyForDeploymentPostprocessing = 0;
 			};
@@ -917,6 +939,8 @@
 			files = (
 				B9000002A1B2C3D4E5F60719 /* cmux.swift in Sources */,
 				B9000027A1B2C3D4E5F60719 /* RemoteRelayZshBootstrap.swift in Sources */,
+				A5001730 /* TmuxSessionInfo.swift in Sources (CLI) */,
+				A5001731 /* TmuxService.swift in Sources (CLI) */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

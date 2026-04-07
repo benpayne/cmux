@@ -2192,6 +2192,18 @@ class TerminalController {
         case "pane.last":
             return v2Result(id: id, self.v2PaneLast(params: params))
 
+        // tmux (feature 707-tmux-control-panel)
+        case "tmux.list":
+            return v2Result(id: id, self.v2TmuxList())
+        case "tmux.create":
+            return v2Result(id: id, self.v2TmuxCreate(params: params))
+        case "tmux.kill":
+            return v2Result(id: id, self.v2TmuxKill(params: params))
+        case "tmux.rename":
+            return v2Result(id: id, self.v2TmuxRename(params: params))
+        case "tmux.attach":
+            return v2Result(id: id, self.v2TmuxAttach(params: params))
+
         // Notifications
         case "notification.create":
             return v2Result(id: id, self.v2NotificationCreate(params: params))
@@ -6779,6 +6791,129 @@ class TerminalController {
                 "pane_ref": v2Ref(kind: .pane, uuid: target.id),
                 "surface_id": v2OrNull(selectedSurfaceId?.uuidString),
                 "surface_ref": v2Ref(kind: .surface, uuid: selectedSurfaceId)
+            ])
+        }
+        return result
+    }
+
+    // MARK: - V2 tmux Methods (feature 707-tmux-control-panel)
+
+    /// Serialize a TmuxSessionInfo for the V2 wire format.
+    private func v2TmuxSessionPayload(_ s: TmuxSessionInfo) -> [String: Any] {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return [
+            "name": s.name,
+            "windows": s.windowCount,
+            "created": formatter.string(from: s.createdAt),
+            "attached": s.isAttached,
+            "clients": s.clientCount,
+        ]
+    }
+
+    private func v2TmuxList() -> V2CallResult {
+        do {
+            let sessions = try TmuxService.shared.listSessions()
+            return .ok(["sessions": sessions.map(v2TmuxSessionPayload)])
+        } catch TmuxServiceError.notInstalled {
+            return .err(code: "tmux_not_available", message: "tmux is not installed on PATH", data: nil)
+        } catch {
+            return .err(code: "tmux_command_failed", message: error.localizedDescription, data: nil)
+        }
+    }
+
+    private func v2TmuxCreate(params: [String: Any]) -> V2CallResult {
+        let name = (params["name"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalized: String? = (name?.isEmpty == false) ? name : nil
+        do {
+            let session = try TmuxService.shared.createSession(name: normalized)
+            return .ok(["session": v2TmuxSessionPayload(session)])
+        } catch TmuxServiceError.notInstalled {
+            return .err(code: "tmux_not_available", message: "tmux is not installed on PATH", data: nil)
+        } catch TmuxServiceError.duplicateName(let n) {
+            return .err(code: "tmux_duplicate_name", message: "duplicate session name: \(n)", data: ["name": n])
+        } catch {
+            return .err(code: "tmux_command_failed", message: error.localizedDescription, data: nil)
+        }
+    }
+
+    private func v2TmuxKill(params: [String: Any]) -> V2CallResult {
+        guard let name = (params["name"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !name.isEmpty else {
+            return .err(code: "invalid_params", message: "Missing or invalid name", data: nil)
+        }
+        do {
+            try TmuxService.shared.killSession(name: name)
+            return .ok([:])
+        } catch TmuxServiceError.notInstalled {
+            return .err(code: "tmux_not_available", message: "tmux is not installed on PATH", data: nil)
+        } catch TmuxServiceError.sessionNotFound(let n) {
+            return .err(code: "tmux_session_not_found", message: "session not found: \(n)", data: ["name": n])
+        } catch {
+            return .err(code: "tmux_command_failed", message: error.localizedDescription, data: nil)
+        }
+    }
+
+    private func v2TmuxRename(params: [String: Any]) -> V2CallResult {
+        guard let name = (params["name"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !name.isEmpty else {
+            return .err(code: "invalid_params", message: "Missing or invalid name", data: nil)
+        }
+        guard let newName = (params["new_name"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !newName.isEmpty else {
+            return .err(code: "invalid_params", message: "Missing or invalid new_name", data: nil)
+        }
+        do {
+            try TmuxService.shared.renameSession(oldName: name, newName: newName)
+            // Re-list to get fresh metadata for the renamed session.
+            let sessions = try TmuxService.shared.listSessions()
+            if let renamed = sessions.first(where: { $0.name == newName }) {
+                return .ok(["session": v2TmuxSessionPayload(renamed)])
+            }
+            return .ok([:])
+        } catch TmuxServiceError.notInstalled {
+            return .err(code: "tmux_not_available", message: "tmux is not installed on PATH", data: nil)
+        } catch TmuxServiceError.duplicateName(let n) {
+            return .err(code: "tmux_duplicate_name", message: "duplicate session name: \(n)", data: ["name": n])
+        } catch TmuxServiceError.sessionNotFound(let n) {
+            return .err(code: "tmux_session_not_found", message: "session not found: \(n)", data: ["name": n])
+        } catch {
+            return .err(code: "tmux_command_failed", message: error.localizedDescription, data: nil)
+        }
+    }
+
+    private func v2TmuxAttach(params: [String: Any]) -> V2CallResult {
+        guard let name = (params["name"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !name.isEmpty else {
+            return .err(code: "invalid_params", message: "Missing or invalid name", data: nil)
+        }
+        guard let tabManager = v2ResolveTabManager(params: params) else {
+            return .err(code: "unavailable", message: "TabManager not available", data: nil)
+        }
+
+        var result: V2CallResult = .err(code: "internal_error", message: "Failed to attach", data: nil)
+        v2MainSync {
+            guard let ws = v2ResolveWorkspace(params: params, tabManager: tabManager) else {
+                result = .err(code: "not_found", message: "Workspace not found", data: nil)
+                return
+            }
+            // Switch to the target workspace if not already selected so the
+            // attach lands in the user's expected context.
+            if tabManager.selectedTabId != ws.id {
+                tabManager.selectWorkspace(ws)
+            }
+            guard let panel = ws.attachTmuxSession(named: name) else {
+                result = .err(code: "not_found", message: "No focused pane to split from", data: nil)
+                return
+            }
+            let windowId = v2ResolveWindowId(tabManager: tabManager)
+            result = .ok([
+                "window_id": v2OrNull(windowId?.uuidString),
+                "window_ref": v2Ref(kind: .window, uuid: windowId),
+                "workspace_id": ws.id.uuidString,
+                "workspace_ref": v2Ref(kind: .workspace, uuid: ws.id),
+                "surface_id": panel.id.uuidString,
+                "surface_ref": v2Ref(kind: .surface, uuid: panel.id),
             ])
         }
         return result

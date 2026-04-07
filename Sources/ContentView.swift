@@ -9990,6 +9990,15 @@ struct VerticalTabsSidebar: View {
                         .padding(.vertical, 8)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
+                        // tmux session list (feature 707-tmux-control-panel).
+                        // Hidden entirely if tmux is not installed on the system.
+                        // Click handler is wired to the currently selected workspace
+                        // so the new pane opens in context.
+                        TmuxSidebarSection(onAttach: { sessionName in
+                            tabManager.attachTmuxSession(named: sessionName)
+                        })
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
                         SidebarEmptyArea(
                             rowSpacing: tabRowSpacing,
                             selection: $selection,

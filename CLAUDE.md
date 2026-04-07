@@ -263,3 +263,10 @@ Notes:
 - README download button points to `releases/latest/download/cmux-macos.dmg`.
 - Versioning: bump the minor version for updates unless explicitly asked otherwise.
 - Changelog: update `CHANGELOG.md`; docs changelog is rendered from it.
+
+## Active Technologies
+- Swift 5.0, macOS 14.0+ (Sonoma) + SwiftUI, AppKit, Combine, GhosttyKit.xcframework, Bonspli (707-tmux-control-panel)
+- N/A (tmux manages its own state; we query it) (707-tmux-control-panel)
+
+## Recent Changes
+- 707-tmux-control-panel: Added Swift 5.0, macOS 14.0+ (Sonoma) + SwiftUI, AppKit, Combine, GhosttyKit.xcframework, Bonspli
