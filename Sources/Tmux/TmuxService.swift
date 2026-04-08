@@ -49,8 +49,17 @@ enum TmuxServiceError: Error, Equatable, LocalizedError {
 final class TmuxService: @unchecked Sendable {
     static let shared = TmuxService()
 
+    /// Optional custom transport. When non-nil, `runTmux(arguments:)`
+    /// delegates to it instead of the built-in local subprocess path.
+    /// Used by remote tmux (feature 708-remote-workspace-ssh) to run
+    /// commands over an existing SSH master via `RemoteTmuxTransport`.
+    /// Nil means "use the local subprocess path" — the existing
+    /// 707-tmux-control-panel behavior.
+    private let customTransport: TmuxTransport?
+
     /// Cached absolute path to the `tmux` binary, or nil if unavailable.
     /// Initialized lazily on first call to `detectTmux()`.
+    /// Only used by the local subprocess path (when `customTransport` is nil).
     private var cachedBinaryPath: String?
     private var didDetect = false
     private let detectionLock = NSLock()
@@ -70,7 +79,18 @@ final class TmuxService: @unchecked Sendable {
     private static let listFormat =
         "#{session_name}|#{session_windows}|#{session_created}|#{session_attached}|#{session_activity}"
 
-    init() {}
+    /// Default initializer — uses the built-in local subprocess path.
+    /// This is what `TmuxService.shared` calls.
+    init() {
+        self.customTransport = nil
+    }
+
+    /// Initialize with a custom transport (used for remote tmux via SSH).
+    /// The transport is responsible for running the actual subprocess;
+    /// TmuxService only parses results and manages CRUD semantics.
+    init(transport: TmuxTransport) {
+        self.customTransport = transport
+    }
 
     // MARK: - Detection
 
@@ -226,13 +246,25 @@ final class TmuxService: @unchecked Sendable {
 
     // MARK: - Subprocess plumbing
 
-    fileprivate struct ProcessResult {
-        let exitCode: Int32
-        let stdout: String
-        let stderr: String
-    }
+    /// Result of a tmux subprocess invocation. Aliased to
+    /// `TmuxProcessResult` so both the built-in and transport-based
+    /// code paths produce the same type (feature 708-remote-workspace-ssh).
+    fileprivate typealias ProcessResult = TmuxProcessResult
 
     fileprivate func runTmux(arguments: [String]) throws -> ProcessResult {
+        // Delegate to the custom transport when set (used for remote
+        // tmux via RemoteTmuxTransport). Maps TmuxTransportError to the
+        // existing TmuxServiceError for call-site compatibility.
+        if let customTransport {
+            do {
+                return try customTransport.runTmux(arguments: arguments)
+            } catch TmuxTransportError.unavailable {
+                throw TmuxServiceError.notInstalled
+            } catch TmuxTransportError.launchFailed(let message) {
+                throw TmuxServiceError.launchFailed(message)
+            }
+        }
+
         guard let binary = detectTmux() else {
             throw TmuxServiceError.notInstalled
         }

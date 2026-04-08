@@ -140,6 +140,18 @@
 					A5001721 /* TmuxServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5001720 /* TmuxServiceTests.swift */; };
 				A5001730 /* TmuxSessionInfo.swift in Sources (CLI) */ = {isa = PBXBuildFile; fileRef = A5001700 /* TmuxSessionInfo.swift */; };
 				A5001731 /* TmuxService.swift in Sources (CLI) */ = {isa = PBXBuildFile; fileRef = A5001701 /* TmuxService.swift */; };
+				A5001740 /* TmuxTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5001750 /* TmuxTransport.swift */; };
+				A5001741 /* SSHConnectionOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5001751 /* SSHConnectionOptions.swift */; };
+				A5001742 /* SSHCommandBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5001752 /* SSHCommandBuilder.swift */; };
+				A5001743 /* SSHConfigParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5001753 /* SSHConfigParser.swift */; };
+				A5001744 /* RemoteHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5001754 /* RemoteHost.swift */; };
+				A5001745 /* ConnectionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5001755 /* ConnectionState.swift */; };
+				A5001746 /* RemoteConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5001756 /* RemoteConnection.swift */; };
+				A5001747 /* RemoteHostManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5001757 /* RemoteHostManager.swift */; };
+				A5001748 /* RemoteTmuxTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5001758 /* RemoteTmuxTransport.swift */; };
+				A5001760 /* SSHCommandBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5001770 /* SSHCommandBuilderTests.swift */; };
+				A5001761 /* SSHConfigParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5001771 /* SSHConfigParserTests.swift */; };
+				A5001790 /* TmuxTransport.swift in Sources (CLI) */ = {isa = PBXBuildFile; fileRef = A5001750 /* TmuxTransport.swift */; };
 		/* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -342,6 +354,17 @@
 				A5001702 /* TmuxSidebarState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tmux/TmuxSidebarState.swift; sourceTree = "<group>"; };
 				A5001703 /* TmuxSidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tmux/TmuxSidebarView.swift; sourceTree = "<group>"; };
 				A5001720 /* TmuxServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TmuxServiceTests.swift; sourceTree = "<group>"; };
+				A5001750 /* TmuxTransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tmux/TmuxTransport.swift; sourceTree = "<group>"; };
+				A5001751 /* SSHConnectionOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tmux/Remote/SSHConnectionOptions.swift; sourceTree = "<group>"; };
+				A5001752 /* SSHCommandBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tmux/Remote/SSHCommandBuilder.swift; sourceTree = "<group>"; };
+				A5001753 /* SSHConfigParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tmux/Remote/SSHConfigParser.swift; sourceTree = "<group>"; };
+				A5001754 /* RemoteHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tmux/Remote/RemoteHost.swift; sourceTree = "<group>"; };
+				A5001755 /* ConnectionState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tmux/Remote/ConnectionState.swift; sourceTree = "<group>"; };
+				A5001756 /* RemoteConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tmux/Remote/RemoteConnection.swift; sourceTree = "<group>"; };
+				A5001757 /* RemoteHostManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tmux/Remote/RemoteHostManager.swift; sourceTree = "<group>"; };
+				A5001758 /* RemoteTmuxTransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tmux/Remote/RemoteTmuxTransport.swift; sourceTree = "<group>"; };
+				A5001770 /* SSHCommandBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHCommandBuilderTests.swift; sourceTree = "<group>"; };
+				A5001771 /* SSHConfigParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHConfigParserTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -532,6 +555,15 @@
 				A5001701 /* TmuxService.swift */,
 				A5001702 /* TmuxSidebarState.swift */,
 				A5001703 /* TmuxSidebarView.swift */,
+				A5001750 /* TmuxTransport.swift */,
+				A5001751 /* SSHConnectionOptions.swift */,
+				A5001752 /* SSHCommandBuilder.swift */,
+				A5001753 /* SSHConfigParser.swift */,
+				A5001754 /* RemoteHost.swift */,
+				A5001755 /* ConnectionState.swift */,
+				A5001756 /* RemoteConnection.swift */,
+				A5001757 /* RemoteHostManager.swift */,
+				A5001758 /* RemoteTmuxTransport.swift */,
 			);
 			path = Sources;
 			sourceTree = "<group>";
@@ -626,6 +658,8 @@
 					10D684CFFB8CDEF89CE2D9E1 /* TabManagerSessionSnapshotTests.swift */,
 					C1A2B3C4D5E6F70800000002 /* CmuxConfigTests.swift */,
 					A5001720 /* TmuxServiceTests.swift */,
+					A5001770 /* SSHCommandBuilderTests.swift */,
+					A5001771 /* SSHConfigParserTests.swift */,
 				);
 				path = cmuxTests;
 				sourceTree = "<group>";
@@ -861,6 +895,15 @@
 			A5001711 /* TmuxService.swift in Sources */,
 			A5001712 /* TmuxSidebarState.swift in Sources */,
 			A5001713 /* TmuxSidebarView.swift in Sources */,
+			A5001740 /* TmuxTransport.swift in Sources */,
+			A5001741 /* SSHConnectionOptions.swift in Sources */,
+			A5001742 /* SSHCommandBuilder.swift in Sources */,
+			A5001743 /* SSHConfigParser.swift in Sources */,
+			A5001744 /* RemoteHost.swift in Sources */,
+			A5001745 /* ConnectionState.swift in Sources */,
+			A5001746 /* RemoteConnection.swift in Sources */,
+			A5001747 /* RemoteHostManager.swift in Sources */,
+			A5001748 /* RemoteTmuxTransport.swift in Sources */,
 		);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -930,6 +973,8 @@
 					2BB56A710BB1FC50367E5BCF /* TabManagerSessionSnapshotTests.swift in Sources */,
 					C1A2B3C4D5E6F70800000001 /* CmuxConfigTests.swift in Sources */,
 					A5001721 /* TmuxServiceTests.swift in Sources */,
+					A5001760 /* SSHCommandBuilderTests.swift in Sources */,
+					A5001761 /* SSHConfigParserTests.swift in Sources */,
 				);
 				runOnlyForDeploymentPostprocessing = 0;
 			};
@@ -941,6 +986,7 @@
 				B9000027A1B2C3D4E5F60719 /* RemoteRelayZshBootstrap.swift in Sources */,
 				A5001730 /* TmuxSessionInfo.swift in Sources (CLI) */,
 				A5001731 /* TmuxService.swift in Sources (CLI) */,
+				A5001790 /* TmuxTransport.swift in Sources (CLI) */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

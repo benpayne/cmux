@@ -122,102 +122,49 @@ struct DetectedSSHSession: Equatable {
         }
     }
 
-    private func scpArguments(localPath: String, remotePath: String) -> [String] {
-        var args: [String] = [
-            "-q",
-            "-o", "ConnectTimeout=6",
-            "-o", "ServerAliveInterval=20",
-            "-o", "ServerAliveCountMax=2",
-            "-o", "BatchMode=yes",
-            "-o", "ControlMaster=no",
-        ]
-
-        if useIPv4 {
-            args.append("-4")
-        } else if useIPv6 {
-            args.append("-6")
-        }
-        if forwardAgent {
-            args.append("-A")
-        }
-        if compressionEnabled {
-            args.append("-C")
-        }
-        if let configFile, !configFile.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            args += ["-F", configFile]
-        }
-        if let jumpHost, !jumpHost.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            args += ["-J", jumpHost]
-        }
-        if let port {
-            args += ["-P", String(port)]
-        }
-        if let identityFile, !identityFile.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            args += ["-i", identityFile]
-        }
-        if let controlPath,
+    /// Build an `SSHConnectionOptions` value from this session's inline
+    /// fields. If `includeControlPath` is true, the control path is
+    /// prepended to the options' sshOptions array as a pre-baked
+    /// `ControlPath=<path>` override (feature 708-remote-workspace-ssh
+    /// extracted these flags into a shared builder).
+    private func asSSHConnectionOptions(includeControlPath: Bool) -> SSHConnectionOptions {
+        var opts = sshOptions
+        if includeControlPath,
+           let controlPath,
            !controlPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
            !Self.hasSSHOptionKey(sshOptions, key: "ControlPath") {
-            args += ["-o", "ControlPath=\(controlPath)"]
+            opts.insert("ControlPath=\(controlPath)", at: 0)
         }
-        if !Self.hasSSHOptionKey(sshOptions, key: "StrictHostKeyChecking") {
-            args += ["-o", "StrictHostKeyChecking=accept-new"]
-        }
-        for option in sshOptions {
-            args += ["-o", option]
-        }
+        return SSHConnectionOptions(
+            port: port,
+            identityFile: identityFile,
+            configFile: configFile,
+            jumpHost: jumpHost,
+            useIPv4: useIPv4,
+            useIPv6: useIPv6,
+            forwardAgent: forwardAgent,
+            compressionEnabled: compressionEnabled,
+            sshOptions: opts
+        )
+    }
 
-        args += [localPath, "\(Self.scpRemoteDestination(destination)):\(remotePath)"]
-        return args
+    private func scpArguments(localPath: String, remotePath: String) -> [String] {
+        return SSHCommandBuilder.buildSCPArguments(
+            localPath: localPath,
+            remoteDestination: Self.scpRemoteDestination(destination),
+            remotePath: remotePath,
+            options: asSSHConnectionOptions(includeControlPath: false),
+            controlPath: controlPath
+        )
     }
 
     private func sshArguments(command: String) -> [String] {
-        var args: [String] = [
-            "-T",
-            "-o", "ConnectTimeout=6",
-            "-o", "ServerAliveInterval=20",
-            "-o", "ServerAliveCountMax=2",
-            "-o", "BatchMode=yes",
-            "-o", "ControlMaster=no",
-        ]
-
-        if useIPv4 {
-            args.append("-4")
-        } else if useIPv6 {
-            args.append("-6")
-        }
-        if forwardAgent {
-            args.append("-A")
-        }
-        if compressionEnabled {
-            args.append("-C")
-        }
-        if let configFile, !configFile.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            args += ["-F", configFile]
-        }
-        if let jumpHost, !jumpHost.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            args += ["-J", jumpHost]
-        }
-        if let port {
-            args += ["-p", String(port)]
-        }
-        if let identityFile, !identityFile.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            args += ["-i", identityFile]
-        }
-        if let controlPath,
-           !controlPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-           !Self.hasSSHOptionKey(sshOptions, key: "ControlPath") {
-            args += ["-o", "ControlPath=\(controlPath)"]
-        }
-        if !Self.hasSSHOptionKey(sshOptions, key: "StrictHostKeyChecking") {
-            args += ["-o", "StrictHostKeyChecking=accept-new"]
-        }
-        for option in sshOptions {
-            args += ["-o", option]
-        }
-
-        args += [destination, command]
-        return args
+        return SSHCommandBuilder.buildSSHArguments(
+            destination: destination,
+            command: command,
+            options: asSSHConnectionOptions(includeControlPath: true),
+            mode: .commandExec
+        )
     }
 
     private func cleanupUploadedRemotePaths(_ remotePaths: [String]) {
