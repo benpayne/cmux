@@ -87223,6 +87223,146 @@
         "en": {"stringUnit": {"state": "translated", "value": "Cancel"}},
         "ja": {"stringUnit": {"state": "translated", "value": "キャンセル"}}
       }
+    },
+    "tmux.remote.sidebar.header": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {"stringUnit": {"state": "translated", "value": "REMOTE: %@"}},
+        "ja": {"stringUnit": {"state": "translated", "value": "リモート: %@"}}
+      }
+    },
+    "tmux.remote.sidebar.empty": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {"stringUnit": {"state": "translated", "value": "No sessions on this host"}},
+        "ja": {"stringUnit": {"state": "translated", "value": "このホストにセッションはありません"}}
+      }
+    },
+    "tmux.remote.sidebar.tmuxUnavailable": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {"stringUnit": {"state": "translated", "value": "tmux is not installed on this host"}},
+        "ja": {"stringUnit": {"state": "translated", "value": "このホストには tmux がインストールされていません"}}
+      }
+    },
+    "tmux.remote.sidebar.newTerminal": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {"stringUnit": {"state": "translated", "value": "New terminal on %@"}},
+        "ja": {"stringUnit": {"state": "translated", "value": "%@ で新しいターミナル"}}
+      }
+    },
+    "remote.sidebar.addHost": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {"stringUnit": {"state": "translated", "value": "Add remote host…"}},
+        "ja": {"stringUnit": {"state": "translated", "value": "リモートホストを追加…"}}
+      }
+    },
+    "remote.sidebar.addHost.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {"stringUnit": {"state": "translated", "value": "Add remote host"}},
+        "ja": {"stringUnit": {"state": "translated", "value": "リモートホストを追加"}}
+      }
+    },
+    "remote.sidebar.addHost.manual": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {"stringUnit": {"state": "translated", "value": "Type destination"}},
+        "ja": {"stringUnit": {"state": "translated", "value": "宛先を入力"}}
+      }
+    },
+    "remote.sidebar.addHost.fromConfig": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {"stringUnit": {"state": "translated", "value": "From SSH config"}},
+        "ja": {"stringUnit": {"state": "translated", "value": "SSH 設定から"}}
+      }
+    },
+    "remote.sidebar.addHost.destinationLabel": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {"stringUnit": {"state": "translated", "value": "Destination"}},
+        "ja": {"stringUnit": {"state": "translated", "value": "宛先"}}
+      }
+    },
+    "remote.sidebar.addHost.aliasLabel": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {"stringUnit": {"state": "translated", "value": "Alias (optional)"}},
+        "ja": {"stringUnit": {"state": "translated", "value": "エイリアス (任意)"}}
+      }
+    },
+    "remote.sidebar.addHost.aliasPlaceholder": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {"stringUnit": {"state": "translated", "value": "Leave blank for default"}},
+        "ja": {"stringUnit": {"state": "translated", "value": "空欄でデフォルト"}}
+      }
+    },
+    "remote.sidebar.addHost.submit": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {"stringUnit": {"state": "translated", "value": "Add & connect"}},
+        "ja": {"stringUnit": {"state": "translated", "value": "追加して接続"}}
+      }
+    },
+    "remote.sidebar.addHost.fromConfigHint": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {"stringUnit": {"state": "translated", "value": "Hosts from ~/.ssh/config"}},
+        "ja": {"stringUnit": {"state": "translated", "value": "~/.ssh/config のホスト"}}
+      }
+    },
+    "remote.sidebar.addHost.fromConfigEmpty": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {"stringUnit": {"state": "translated", "value": "No eligible hosts found in ~/.ssh/config"}},
+        "ja": {"stringUnit": {"state": "translated", "value": "~/.ssh/config に対象のホストがありません"}}
+      }
+    },
+    "remote.menu.reconnect": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {"stringUnit": {"state": "translated", "value": "Reconnect"}},
+        "ja": {"stringUnit": {"state": "translated", "value": "再接続"}}
+      }
+    },
+    "remote.menu.disconnect": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {"stringUnit": {"state": "translated", "value": "Disconnect"}},
+        "ja": {"stringUnit": {"state": "translated", "value": "切断"}}
+      }
+    },
+    "remote.menu.remove": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {"stringUnit": {"state": "translated", "value": "Remove host…"}},
+        "ja": {"stringUnit": {"state": "translated", "value": "ホストを削除…"}}
+      }
+    },
+    "remote.confirm.removeTitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {"stringUnit": {"state": "translated", "value": "Remove remote host?"}},
+        "ja": {"stringUnit": {"state": "translated", "value": "リモートホストを削除しますか？"}}
+      }
+    },
+    "remote.confirm.removeMessage": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {"stringUnit": {"state": "translated", "value": "This will disconnect \"%@\" and close any open terminals on it."}},
+        "ja": {"stringUnit": {"state": "translated", "value": "「%@」を切断し、開いているターミナルを閉じます。"}}
+      }
+    },
+    "remote.confirm.remove": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {"stringUnit": {"state": "translated", "value": "Remove"}},
+        "ja": {"stringUnit": {"state": "translated", "value": "削除"}}
+      }
     }
   }
 }

@@ -8928,6 +8928,70 @@ final class Workspace: Identifiable, ObservableObject {
         )
     }
 
+    /// Open a plain interactive shell on a REMOTE host in a new
+    /// horizontal split. Reuses the host's existing SSH master
+    /// connection via `-S <sock>`.
+    ///
+    /// Part of feature 708-remote-workspace-ssh (Phase 5, US3).
+    /// Returns the created `TerminalPanel`, or nil if there's no
+    /// focused panel to split from or the host has no live connection.
+    @MainActor
+    @discardableResult
+    func openRemoteShell(onHost connection: RemoteConnection) -> TerminalPanel? {
+        guard let sourcePanelId = focusedPanelId else { return nil }
+        guard let command = RemoteHostManager.shared.newShellCommand(onHostId: connection.host.id) else {
+            return nil
+        }
+#if DEBUG
+        dlog("remote.shell.open host=\(connection.host.alias) sourcePanel=\(sourcePanelId.uuidString.prefix(5))")
+#endif
+        let panel = newTerminalSplit(
+            from: sourcePanelId,
+            orientation: .horizontal,
+            insertFirst: false,
+            focus: true,
+            initialCommand: command
+        )
+        if panel != nil {
+            connection.registerOpenedPane()
+        }
+        return panel
+    }
+
+    /// Attach to a tmux session on a REMOTE host via an existing
+    /// `RemoteConnection`'s SSH master. The new pane runs
+    /// `ssh -S <sock> -t <destination> tmux attach-session -t <name>`
+    /// so it reuses the authenticated master and displays the remote
+    /// tmux session with full interactivity.
+    ///
+    /// Part of feature 708-remote-workspace-ssh (Phase 4, US2). The
+    /// pane is registered with the `RemoteConnection` for pane-count
+    /// tracking so disconnect/teardown can find affected panes.
+    ///
+    /// Returns the created `TerminalPanel`, or nil if there's no
+    /// focused panel to split from.
+    @MainActor
+    @discardableResult
+    func attachTmuxSession(named sessionName: String, onRemoteHost connection: RemoteConnection) -> TerminalPanel? {
+        guard let sourcePanelId = focusedPanelId else { return nil }
+        let transport = RemoteTmuxTransport(connection: connection)
+        let attachCommand = transport.attachCommand(forSession: sessionName)
+#if DEBUG
+        dlog("tmux.remote.attach session=\(sessionName) host=\(connection.host.alias) sourcePanel=\(sourcePanelId.uuidString.prefix(5))")
+#endif
+        let panel = newTerminalSplit(
+            from: sourcePanelId,
+            orientation: .horizontal,
+            insertFirst: false,
+            focus: true,
+            initialCommand: attachCommand
+        )
+        if panel != nil {
+            connection.registerOpenedPane()
+        }
+        return panel
+    }
+
     /// Create a new surface (nested tab) in the specified pane with a terminal panel.
     /// - Parameter focus: nil = focus only if the target pane is already focused (default UI behavior),
     ///                    true = force focus/selection of the new surface,

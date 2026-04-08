@@ -2917,6 +2917,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         TerminalController.shared.stop()
         VSCodeServeWebController.shared.stop()
         BrowserProfileStore.shared.flushPendingSaves()
+        // Tear down all remote SSH master connections so no orphaned
+        // `ssh -M` processes or control sockets survive cmux quit
+        // (feature 708-remote-workspace-ssh, FR-020).
+        RemoteHostManager.shared.teardownAllConnections()
         if TelemetrySettings.enabledForCurrentLaunch {
             PostHogAnalytics.shared.flush()
         }

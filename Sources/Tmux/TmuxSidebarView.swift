@@ -28,16 +28,69 @@ import SwiftUI
 /// ```
 struct TmuxSidebarSection: View {
     @ObservedObject private var state: TmuxSidebarState = .shared
+    @ObservedObject private var remoteManager: RemoteHostManager = .shared
 
-    /// Called when the user clicks a session row to attach to it.
+    /// Called when the user clicks a local session row to attach to it.
     /// The host is responsible for opening a terminal pane that runs the
     /// command returned by `TmuxService.attachCommand(for:)`.
     let onAttach: (String) -> Void
 
+    /// Called when the user clicks a remote session row. The host
+    /// (ContentView) wires this to `tabManager.attachRemoteTmuxSession`.
+    /// Part of feature 708-remote-workspace-ssh (Phase 4, US2).
+    let onRemoteAttach: (_ hostId: UUID, _ sessionName: String) -> Void
+
+    /// Called when the user clicks "+ New terminal" in a remote host
+    /// section header. Opens a plain shell pane on the host.
+    /// Feature 708-remote-workspace-ssh (Phase 5, US3).
+    let onOpenRemoteShell: (_ hostId: UUID) -> Void
+
     var body: some View {
-        // Hide entirely when tmux is not installed.
-        if state.isAvailable {
-            TmuxSidebarSectionContent(state: state, onAttach: onAttach)
+        VStack(alignment: .leading, spacing: 0) {
+            // Local tmux section — hidden entirely when tmux is not installed.
+            if state.isAvailable {
+                TmuxSidebarSectionContent(state: state, onAttach: onAttach)
+            }
+
+            // Remote tmux sections — one per managed remote host.
+            // Feature 708-remote-workspace-ssh (Phases 3–6).
+            ForEach(remoteManager.hostsInDisplayOrder) { host in
+                if let group = remoteManager.remoteGroups[host.id] {
+                    // Connected host — show the live group with sessions.
+                    RemoteTmuxSidebarSectionContent(
+                        group: group,
+                        connectionState: remoteManager.connections[host.id]?.state ?? .disconnected,
+                        onAttach: { sessionName in
+                            onRemoteAttach(host.id, sessionName)
+                        },
+                        onNewShell: {
+                            onOpenRemoteShell(host.id)
+                        },
+                        onDisconnect: {
+                            remoteManager.disconnect(id: host.id)
+                        },
+                        onRemove: {
+                            remoteManager.removeHost(id: host.id)
+                        }
+                    )
+                } else {
+                    // Disconnected / failed host — show a thin placeholder row.
+                    DisconnectedRemoteHostRow(
+                        host: host,
+                        state: remoteManager.connections[host.id]?.state ?? .disconnected,
+                        onReconnect: {
+                            remoteManager.connect(id: host.id)
+                        },
+                        onRemove: {
+                            remoteManager.removeHost(id: host.id)
+                        }
+                    )
+                }
+            }
+
+            // Always-visible "+ Add remote host" button so the feature
+            // is discoverable even with zero hosts configured.
+            AddRemoteHostButton()
         }
     }
 }
@@ -391,5 +444,253 @@ private struct TmuxErrorRow: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 3)
+    }
+}
+
+// MARK: - Remote tmux section
+// Feature 708-remote-workspace-ssh (Phase 3, US1). Renders one section
+// per connected remote host. Structurally mirrors the local
+// TmuxSidebarSectionContent above but binds to a RemoteTmuxSidebarGroup
+// (which owns a TmuxService with a RemoteTmuxTransport).
+
+private struct RemoteTmuxSidebarSectionContent: View {
+    @ObservedObject var group: RemoteTmuxSidebarGroup
+    let connectionState: ConnectionState
+    let onAttach: (String) -> Void
+    let onNewShell: () -> Void
+    let onDisconnect: () -> Void
+    let onRemove: () -> Void
+
+    @State private var isExpanded: Bool = true
+    @State private var showingRemoveConfirmation: Bool = false
+
+    var body: some View {
+        DisclosureGroup(isExpanded: $isExpanded) {
+            VStack(alignment: .leading, spacing: 0) {
+                if !group.remoteTmuxAvailable {
+                    Text(String(localized: "tmux.remote.sidebar.tmuxUnavailable",
+                                defaultValue: "tmux is not installed on this host"))
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                } else if group.sessions.isEmpty {
+                    Text(String(localized: "tmux.remote.sidebar.empty",
+                                defaultValue: "No sessions on this host"))
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                } else {
+                    ForEach(group.sessions) { session in
+                        RemoteTmuxSessionRow(session: session) {
+                            onAttach(session.name)
+                        }
+                    }
+                }
+                if let error = group.lastError {
+                    HStack(spacing: 4) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.system(size: 10))
+                            .foregroundColor(.orange)
+                        Text(error)
+                            .font(.system(size: 10))
+                            .foregroundColor(.secondary)
+                            .lineLimit(2)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                }
+            }
+            .padding(.leading, 4)
+        } label: {
+            HStack(spacing: 6) {
+                RemoteConnectionStatusIndicator(state: connectionState)
+                Image(systemName: "network")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.secondary)
+                Text(String(
+                    format: String(localized: "tmux.remote.sidebar.header",
+                                   defaultValue: "REMOTE: %@"),
+                    group.alias
+                ))
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(.secondary)
+                .textCase(.uppercase)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                Spacer()
+                if group.isLoading {
+                    ProgressView()
+                        .scaleEffect(0.4)
+                        .frame(width: 10, height: 10)
+                }
+                Button(action: onNewShell) {
+                    Image(systemName: "terminal")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(.secondary)
+                        .frame(width: 14, height: 14)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(String(
+                    format: String(localized: "tmux.remote.sidebar.newTerminal",
+                                   defaultValue: "New terminal on %@"),
+                    group.alias
+                ))
+            }
+            .contentShape(Rectangle())
+            .contextMenu {
+                Button(String(localized: "remote.menu.disconnect",
+                              defaultValue: "Disconnect"), action: onDisconnect)
+                Divider()
+                Button(String(localized: "remote.menu.remove",
+                              defaultValue: "Remove host…"), role: .destructive) {
+                    showingRemoveConfirmation = true
+                }
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .alert(
+            String(localized: "remote.confirm.removeTitle",
+                   defaultValue: "Remove remote host?"),
+            isPresented: $showingRemoveConfirmation
+        ) {
+            Button(String(localized: "remote.confirm.remove",
+                          defaultValue: "Remove"), role: .destructive, action: onRemove)
+            Button(String(localized: "common.cancel",
+                          defaultValue: "Cancel"), role: .cancel) {}
+        } message: {
+            Text(String(
+                format: String(localized: "remote.confirm.removeMessage",
+                               defaultValue: "This will disconnect \"%@\" and close any open terminals on it."),
+                group.alias
+            ))
+        }
+    }
+}
+
+/// Thin placeholder row shown for hosts that are disconnected or
+/// failed. Clicking attempts to reconnect; context menu offers remove.
+/// Feature 708-remote-workspace-ssh (Phase 6, US4).
+private struct DisconnectedRemoteHostRow: View {
+    let host: RemoteHost
+    let state: ConnectionState
+    let onReconnect: () -> Void
+    let onRemove: () -> Void
+
+    @State private var showingRemoveConfirmation = false
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: onReconnect) {
+            HStack(spacing: 6) {
+                RemoteConnectionStatusIndicator(state: state)
+                Text(String(
+                    format: String(localized: "tmux.remote.sidebar.header",
+                                   defaultValue: "REMOTE: %@"),
+                    host.alias
+                ))
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(.secondary)
+                .textCase(.uppercase)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                Spacer()
+                if case .failed(let reason) = state {
+                    Text(reason)
+                        .font(.system(size: 10))
+                        .foregroundColor(.red)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .help(reason)
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .contentShape(Rectangle())
+            .background(isHovered ? Color.secondary.opacity(0.10) : Color.clear)
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+        .help(String(localized: "remote.menu.reconnect",
+                     defaultValue: "Reconnect"))
+        .contextMenu {
+            Button(String(localized: "remote.menu.reconnect",
+                          defaultValue: "Reconnect"), action: onReconnect)
+            Divider()
+            Button(String(localized: "remote.menu.remove",
+                          defaultValue: "Remove host…"), role: .destructive) {
+                showingRemoveConfirmation = true
+            }
+        }
+        .alert(
+            String(localized: "remote.confirm.removeTitle",
+                   defaultValue: "Remove remote host?"),
+            isPresented: $showingRemoveConfirmation
+        ) {
+            Button(String(localized: "remote.confirm.remove",
+                          defaultValue: "Remove"), role: .destructive, action: onRemove)
+            Button(String(localized: "common.cancel",
+                          defaultValue: "Cancel"), role: .cancel) {}
+        } message: {
+            Text(String(
+                format: String(localized: "remote.confirm.removeMessage",
+                               defaultValue: "This will disconnect \"%@\" and close any open terminals on it."),
+                host.alias
+            ))
+        }
+    }
+}
+
+private struct RemoteTmuxSessionRow: View {
+    let session: TmuxSessionInfo
+    let onAttach: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: onAttach) {
+            HStack(spacing: 6) {
+                Image(systemName: session.isAttached ? "circle.fill" : "circle")
+                    .font(.system(size: 7))
+                    .foregroundColor(session.isAttached ? .green : .secondary)
+                    .frame(width: 10)
+
+                Text(session.name)
+                    .font(.system(size: 12))
+                    .foregroundColor(.primary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+
+                Spacer()
+
+                Text(windowCountLabel(session.windowCount))
+                    .font(.system(size: 10))
+                    .foregroundColor(.secondary)
+                    .monospacedDigit()
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .contentShape(Rectangle())
+            .background(
+                isHovered ? Color.secondary.opacity(0.12) : Color.clear
+            )
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in isHovered = hovering }
+    }
+
+    private func windowCountLabel(_ count: Int) -> String {
+        if count == 1 {
+            return String(localized: "tmux.sidebar.windowCount.one",
+                          defaultValue: "1 window")
+        }
+        return String(
+            format: String(localized: "tmux.sidebar.windowCount.many",
+                           defaultValue: "%d windows"),
+            count
+        )
     }
 }

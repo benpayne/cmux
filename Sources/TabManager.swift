@@ -3957,6 +3957,32 @@ class TabManager: ObservableObject {
         return workspace.attachTmuxSession(named: sessionName)?.id
     }
 
+    /// Open a new pane attached to a REMOTE tmux session on the given
+    /// host, reusing the host's existing SSH master connection.
+    /// Part of feature 708-remote-workspace-ssh (Phase 4, US2).
+    ///
+    /// No-op if no workspace is selected, if the host is unknown, or if
+    /// the host has no live connection.
+    @MainActor
+    @discardableResult
+    func attachRemoteTmuxSession(named sessionName: String, onHostId hostId: UUID) -> UUID? {
+        guard let workspace = selectedTab else { return nil }
+        guard let connection = RemoteHostManager.shared.connections[hostId] else { return nil }
+        return workspace.attachTmuxSession(named: sessionName, onRemoteHost: connection)?.id
+    }
+
+    /// Open a plain interactive shell on a connected remote host in
+    /// the currently selected workspace. Feature 708-remote-workspace-ssh
+    /// (Phase 5, US3). No-op if no workspace is selected or the host
+    /// has no live connection.
+    @MainActor
+    @discardableResult
+    func openRemoteShell(onHostId hostId: UUID) -> UUID? {
+        guard let workspace = selectedTab else { return nil }
+        guard let connection = RemoteHostManager.shared.connections[hostId] else { return nil }
+        return workspace.openRemoteShell(onHost: connection)?.id
+    }
+
     /// Move focus in the specified direction
     func moveSplitFocus(tabId: UUID, surfaceId: UUID, direction: NavigationDirection) -> Bool {
         guard let tab = tabs.first(where: { $0.id == tabId }) else { return false }

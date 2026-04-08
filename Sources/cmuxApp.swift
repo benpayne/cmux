@@ -142,6 +142,7 @@ struct cmuxApp: App {
     @StateObject private var cmuxConfigStore = CmuxConfigStore()
     @StateObject private var keyboardShortcutSettingsObserver = KeyboardShortcutSettingsObserver.shared
     @StateObject private var tmuxSidebarState = TmuxSidebarState.shared
+    @StateObject private var remoteHostManager = RemoteHostManager.shared
     private let primaryWindowId = UUID()
     @AppStorage(AppearanceSettings.appearanceModeKey) private var appearanceMode = AppearanceSettings.defaultMode.rawValue
     @AppStorage("titlebarControlsStyle") private var titlebarControlsStyle = TitlebarControlsStyle.classic.rawValue
@@ -322,6 +323,7 @@ struct cmuxApp: App {
                 .environmentObject(sidebarSelectionState)
                 .environmentObject(cmuxConfigStore)
                 .environmentObject(tmuxSidebarState)
+                .environmentObject(remoteHostManager)
                 .onAppear {
                     // Start tmux session polling. Hidden if tmux is not installed.
                     tmuxSidebarState.start()

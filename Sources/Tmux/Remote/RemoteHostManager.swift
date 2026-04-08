@@ -28,6 +28,12 @@ final class RemoteHostManager: ObservableObject {
     /// disconnected.
     @Published private(set) var connections: [UUID: RemoteConnection] = [:]
 
+    /// Per-host sidebar groups for connected hosts. Created when a
+    /// connection transitions to `.connected`, removed when the host
+    /// is disconnected or removed. The sidebar view iterates these
+    /// to render one section per remote host.
+    @Published private(set) var remoteGroups: [UUID: RemoteTmuxSidebarGroup] = [:]
+
     /// Convenience: hosts sorted by addedAt for display.
     var hostsInDisplayOrder: [RemoteHost] {
         hosts.values.sorted { $0.addedAt < $1.addedAt }
@@ -139,6 +145,10 @@ final class RemoteHostManager: ObservableObject {
 
     /// Remove a host and tear down any active connection.
     func removeHost(id: UUID, completion: @escaping () -> Void = {}) {
+        if let group = remoteGroups[id] {
+            group.stop()
+            remoteGroups.removeValue(forKey: id)
+        }
         if let connection = connections[id] {
             connection.disconnect { [weak self] in
                 self?.connections.removeValue(forKey: id)
@@ -162,6 +172,9 @@ final class RemoteHostManager: ObservableObject {
             throw RemoteHostManagerError.duplicateAlias(trimmed)
         }
         hosts[id]?.alias = trimmed
+        if let updatedHost = hosts[id] {
+            remoteGroups[id]?.updateHost(updatedHost)
+        }
     }
 
     // MARK: - Connection
@@ -202,6 +215,13 @@ final class RemoteHostManager: ObservableObject {
                 var updatedHost = host
                 updatedHost.lastConnectedAt = Date()
                 self?.hosts[id] = updatedHost
+                // Spin up the per-host sidebar group and start polling
+                // tmux sessions on the newly-connected remote.
+                if let self, let connection = self.connections[id], self.remoteGroups[id] == nil {
+                    let group = RemoteTmuxSidebarGroup.make(for: connection)
+                    self.remoteGroups[id] = group
+                    group.start()
+                }
             }
             self?.objectWillChange.send()
             completion(result)
@@ -216,11 +236,47 @@ final class RemoteHostManager: ObservableObject {
             completion()
             return
         }
+        // Stop polling immediately so the sidebar stops hitting a
+        // dead master during the teardown window.
+        if let group = remoteGroups[id] {
+            group.stop()
+            remoteGroups.removeValue(forKey: id)
+        }
         connection.disconnect { [weak self] in
             self?.connections.removeValue(forKey: id)
             self?.objectWillChange.send()
             completion()
         }
+    }
+
+    /// Build the command string that opens a plain interactive shell
+    /// on a connected remote host via the existing SSH master. Used
+    /// by `Workspace.openRemoteShell` to seed a new TerminalPanel's
+    /// `initialCommand`. Feature 708-remote-workspace-ssh (Phase 5, US3).
+    ///
+    /// Returns nil if the host has no live connection.
+    func newShellCommand(onHostId hostId: UUID) -> String? {
+        guard let connection = connections[hostId] else { return nil }
+        guard case .connected = connection.state else { return nil }
+        let host = connection.host
+        let args = SSHCommandBuilder.buildSSHArguments(
+            destination: host.destination,
+            // `$SHELL` is expanded on the remote side — ssh inherits
+            // the target user's login shell.
+            command: "exec ${SHELL:-/bin/sh} -l",
+            options: host.sshOptions,
+            mode: .interactiveAttach(controlSocketPath: connection.controlSocketPath)
+        )
+        return (["/usr/bin/ssh"] + args)
+            .map { Self.shellQuote($0) }
+            .joined(separator: " ")
+    }
+
+    /// POSIX single-quote escape used when assembling shell command
+    /// strings from argument arrays.
+    private static func shellQuote(_ value: String) -> String {
+        let escaped = value.replacingOccurrences(of: "'", with: "'\\''")
+        return "'\(escaped)'"
     }
 
     /// Look up or create a host matching a destination. Used by the
@@ -242,6 +298,10 @@ final class RemoteHostManager: ObservableObject {
     /// cmux exit.
     func teardownAllConnections() {
         stopHealthCheckTimer()
+        for (_, group) in remoteGroups {
+            group.stop()
+        }
+        remoteGroups.removeAll()
         let allConnections = Array(connections.values)
         for connection in allConnections {
             connection.disconnect(completion: {})

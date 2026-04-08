@@ -9990,13 +9990,23 @@ struct VerticalTabsSidebar: View {
                         .padding(.vertical, 8)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
-                        // tmux session list (feature 707-tmux-control-panel).
-                        // Hidden entirely if tmux is not installed on the system.
-                        // Click handler is wired to the currently selected workspace
-                        // so the new pane opens in context.
-                        TmuxSidebarSection(onAttach: { sessionName in
-                            tabManager.attachTmuxSession(named: sessionName)
-                        })
+                        // tmux session list (features 707-tmux-control-panel
+                        // + 708-remote-workspace-ssh). Hidden entirely if
+                        // tmux is not installed on the system (local) and
+                        // no remote hosts are connected. Click handlers
+                        // route attach requests to the currently selected
+                        // workspace so new panes open in context.
+                        TmuxSidebarSection(
+                            onAttach: { sessionName in
+                                tabManager.attachTmuxSession(named: sessionName)
+                            },
+                            onRemoteAttach: { hostId, sessionName in
+                                tabManager.attachRemoteTmuxSession(named: sessionName, onHostId: hostId)
+                            },
+                            onOpenRemoteShell: { hostId in
+                                tabManager.openRemoteShell(onHostId: hostId)
+                            }
+                        )
                         .frame(maxWidth: .infinity, alignment: .leading)
 
                         SidebarEmptyArea(
