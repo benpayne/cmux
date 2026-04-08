@@ -54,6 +54,10 @@ final class RemoteHostManager: ObservableObject {
     private var healthCheckTimer: Timer?
     private let healthCheckInterval: TimeInterval = 30.0
 
+    /// Persistent storage for saved hosts. Feature 708-remote-workspace-ssh
+    /// (Phase 8, US6).
+    private let registryStore: HostRegistryStore
+
     // MARK: - Init
 
     init() {
@@ -63,13 +67,29 @@ final class RemoteHostManager: ObservableObject {
         let sshDir = cmuxDir.appendingPathComponent("ssh", isDirectory: true)
         self.instanceId = UUID().uuidString.prefix(8).lowercased()
         self.controlSocketDirectory = sshDir.appendingPathComponent(instanceId, isDirectory: true)
+        self.registryStore = HostRegistryStore.default
 
         try? FileManager.default.createDirectory(
             at: controlSocketDirectory,
             withIntermediateDirectories: true
         )
 
+        // Load saved hosts from disk. Per FR-013, loaded hosts start
+        // in the disconnected state — no auto-reconnect.
+        let savedRegistry = registryStore.loadTolerant()
+        for host in savedRegistry.hosts {
+            self.hosts[host.id] = host
+        }
+
         startHealthCheckTimer()
+    }
+
+    /// Persist the current (non-transient) host list to disk. Silently
+    /// swallows errors — persistence failures should not break the
+    /// running session.
+    private func persistHosts() {
+        let list = Array(hosts.values)
+        try? registryStore.save(hosts: list)
     }
 
     // MARK: - Lifecycle
@@ -140,6 +160,7 @@ final class RemoteHostManager: ObservableObject {
             transient: transient
         )
         hosts[host.id] = host
+        persistHosts()
         return host
     }
 
@@ -153,10 +174,12 @@ final class RemoteHostManager: ObservableObject {
             connection.disconnect { [weak self] in
                 self?.connections.removeValue(forKey: id)
                 self?.hosts.removeValue(forKey: id)
+                self?.persistHosts()
                 completion()
             }
         } else {
             hosts.removeValue(forKey: id)
+            persistHosts()
             completion()
         }
     }
@@ -175,6 +198,7 @@ final class RemoteHostManager: ObservableObject {
         if let updatedHost = hosts[id] {
             remoteGroups[id]?.updateHost(updatedHost)
         }
+        persistHosts()
     }
 
     // MARK: - Connection
@@ -215,6 +239,7 @@ final class RemoteHostManager: ObservableObject {
                 var updatedHost = host
                 updatedHost.lastConnectedAt = Date()
                 self?.hosts[id] = updatedHost
+                self?.persistHosts()
                 // Spin up the per-host sidebar group and start polling
                 // tmux sessions on the newly-connected remote.
                 if let self, let connection = self.connections[id], self.remoteGroups[id] == nil {

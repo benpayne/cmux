@@ -463,6 +463,8 @@ private struct RemoteTmuxSidebarSectionContent: View {
 
     @State private var isExpanded: Bool = true
     @State private var showingRemoveConfirmation: Bool = false
+    @State private var renamingSessionName: String?
+    @State private var killConfirmationName: String?
 
     var body: some View {
         DisclosureGroup(isExpanded: $isExpanded) {
@@ -483,8 +485,29 @@ private struct RemoteTmuxSidebarSectionContent: View {
                         .padding(.vertical, 3)
                 } else {
                     ForEach(group.sessions) { session in
-                        RemoteTmuxSessionRow(session: session) {
-                            onAttach(session.name)
+                        if renamingSessionName == session.name {
+                            TmuxRenameSessionRow(
+                                originalName: session.name,
+                                onSubmit: { newName in
+                                    handleRenameSubmit(oldName: session.name, newName: newName)
+                                },
+                                onCancel: { renamingSessionName = nil }
+                            )
+                        } else {
+                            RemoteTmuxSessionRow(session: session) {
+                                onAttach(session.name)
+                            }
+                            .contextMenu {
+                                Button(String(localized: "tmux.menu.rename",
+                                              defaultValue: "Rename…")) {
+                                    renamingSessionName = session.name
+                                }
+                                Button(String(localized: "tmux.menu.kill",
+                                              defaultValue: "Kill Session…"),
+                                       role: .destructive) {
+                                    killConfirmationName = session.name
+                                }
+                            }
                         }
                     }
                 }
@@ -567,6 +590,43 @@ private struct RemoteTmuxSidebarSectionContent: View {
                                defaultValue: "This will disconnect \"%@\" and close any open terminals on it."),
                 group.alias
             ))
+        }
+        .alert(
+            String(localized: "tmux.kill.confirmTitle",
+                   defaultValue: "Kill tmux session?"),
+            isPresented: Binding(
+                get: { killConfirmationName != nil },
+                set: { if !$0 { killConfirmationName = nil } }
+            ),
+            presenting: killConfirmationName
+        ) { name in
+            Button(String(localized: "tmux.kill.confirm",
+                          defaultValue: "Kill"), role: .destructive) {
+                group.killSession(name: name) { _ in }
+                killConfirmationName = nil
+            }
+            Button(String(localized: "common.cancel",
+                          defaultValue: "Cancel"), role: .cancel) {}
+        } message: { name in
+            Text(String(
+                format: String(localized: "tmux.kill.confirmMessage",
+                               defaultValue: "Session \"%@\" and all of its windows will be destroyed."),
+                name
+            ))
+        }
+    }
+
+    private func handleRenameSubmit(oldName: String, newName: String) {
+        group.renameSession(oldName: oldName, newName: newName) { outcome in
+            switch outcome {
+            case .success:
+                renamingSessionName = nil
+            case .duplicate:
+                // Keep the edit row open; the group's lastError surfaces inline
+                break
+            case .failure:
+                renamingSessionName = nil
+            }
         }
     }
 }

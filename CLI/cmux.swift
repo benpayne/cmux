@@ -2314,6 +2314,102 @@ struct CMUXCLI {
             let response = try sendV1Command("reload_config", client: client)
             print(response)
 
+        // Remote host commands (feature 708-remote-workspace-ssh)
+        case "host-list":
+            let payload = try client.sendV2(method: "host.list")
+            if jsonOutput {
+                print(jsonString(payload))
+            } else {
+                let hosts = payload["hosts"] as? [[String: Any]] ?? []
+                if hosts.isEmpty {
+                    print("No remote hosts")
+                } else {
+                    for host in hosts {
+                        let alias = host["alias"] as? String ?? "?"
+                        let destination = host["destination"] as? String ?? ""
+                        let state = host["state"] as? String ?? "unknown"
+                        let marker: String
+                        switch state {
+                        case "connected": marker = "*"
+                        case "failed": marker = "!"
+                        default: marker = " "
+                        }
+                        print("\(marker) \(alias)  [\(destination)]  [\(state)]")
+                    }
+                }
+            }
+
+        case "host-add":
+            guard let destination = optionValue(commandArgs, name: "--destination") ?? commandArgs.first else {
+                throw CLIError(message: "host-add requires a destination (user@host or SSH config alias)")
+            }
+            let alias = optionValue(commandArgs, name: "--alias")
+            let transient = commandArgs.contains("--transient")
+            var params: [String: Any] = ["destination": destination, "save": !transient]
+            if let alias { params["alias"] = alias }
+            let payload = try client.sendV2(method: "host.add", params: params)
+            if jsonOutput {
+                print(jsonString(payload))
+            } else if let host = payload["host"] as? [String: Any] {
+                print("Added host: \(host["alias"] as? String ?? "?")")
+            } else {
+                print("Added host")
+            }
+
+        case "host-remove":
+            guard let idOrAlias = optionValue(commandArgs, name: "--host") ?? commandArgs.first else {
+                throw CLIError(message: "host-remove requires --host <id|alias>")
+            }
+            let resolvedId = try resolveHostId(idOrAlias, client: client)
+            let payload = try client.sendV2(method: "host.remove", params: ["id": resolvedId])
+            if jsonOutput {
+                print(jsonString(payload))
+            } else {
+                print("Removed host")
+            }
+
+        case "host-connect":
+            guard let idOrAlias = optionValue(commandArgs, name: "--host") ?? commandArgs.first else {
+                throw CLIError(message: "host-connect requires --host <id|alias>")
+            }
+            let resolvedId = try resolveHostId(idOrAlias, client: client)
+            let payload = try client.sendV2(method: "host.connect", params: ["id": resolvedId])
+            if jsonOutput {
+                print(jsonString(payload))
+            } else if let host = payload["host"] as? [String: Any] {
+                print("Connected: \(host["alias"] as? String ?? "?")")
+            } else {
+                print("Connected")
+            }
+
+        case "host-disconnect":
+            guard let idOrAlias = optionValue(commandArgs, name: "--host") ?? commandArgs.first else {
+                throw CLIError(message: "host-disconnect requires --host <id|alias>")
+            }
+            let resolvedId = try resolveHostId(idOrAlias, client: client)
+            let payload = try client.sendV2(method: "host.disconnect", params: ["id": resolvedId])
+            if jsonOutput {
+                print(jsonString(payload))
+            } else {
+                print("Disconnected")
+            }
+
+        case "host-shell":
+            guard let idOrAlias = optionValue(commandArgs, name: "--host") ?? commandArgs.first else {
+                throw CLIError(message: "host-shell requires --host <id|alias>")
+            }
+            let resolvedId = try resolveHostId(idOrAlias, client: client)
+            let workspaceArg = workspaceFromArgsOrEnv(commandArgs, windowOverride: windowId)
+            var params: [String: Any] = ["id": resolvedId]
+            let wsId = try normalizeWorkspaceHandle(workspaceArg, client: client)
+            if let wsId { params["workspace_id"] = wsId }
+            let payload = try client.sendV2(method: "host.shell.open", params: params)
+            if jsonOutput {
+                print(jsonString(payload))
+            } else {
+                print("Opened remote shell")
+            }
+
         case "surface-health":
             let workspaceArg = workspaceFromArgsOrEnv(commandArgs, windowOverride: windowId)
             var params: [String: Any] = [:]
@@ -3317,6 +3413,19 @@ struct CMUXCLI {
     private func userPositionToV2Index(_ raw: String) -> Int? {
         guard let position = Int(raw), position >= 1 else { return nil }
         return position - 1
+    }
+
+    /// Resolve a host identifier (UUID or alias) to a UUID string by
+    /// querying `host.list`. Feature 708-remote-workspace-ssh.
+    private func resolveHostId(_ raw: String, client: SocketClient) throws -> String {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if isUUID(trimmed) { return trimmed }
+        let listed = try client.sendV2(method: "host.list")
+        let hosts = listed["hosts"] as? [[String: Any]] ?? []
+        if let match = hosts.first(where: { ($0["alias"] as? String) == trimmed }) {
+            if let id = match["id"] as? String { return id }
+        }
+        throw CLIError(message: "Remote host not found: \(trimmed)")
     }
 
     private func normalizeWindowHandle(_ raw: String?, client: SocketClient, allowCurrent: Bool = false) throws -> String? {

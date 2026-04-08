@@ -2204,6 +2204,22 @@ class TerminalController {
         case "tmux.attach":
             return v2Result(id: id, self.v2TmuxAttach(params: params))
 
+        // Remote host management (feature 708-remote-workspace-ssh)
+        case "host.list":
+            return v2Result(id: id, self.v2HostList())
+        case "host.add":
+            return v2Result(id: id, self.v2HostAdd(params: params))
+        case "host.remove":
+            return v2Result(id: id, self.v2HostRemove(params: params))
+        case "host.connect":
+            return v2Result(id: id, self.v2HostConnect(params: params))
+        case "host.disconnect":
+            return v2Result(id: id, self.v2HostDisconnect(params: params))
+        case "host.connect_or_get":
+            return v2Result(id: id, self.v2HostConnectOrGet(params: params))
+        case "host.shell.open":
+            return v2Result(id: id, self.v2HostShellOpen(params: params))
+
         // Notifications
         case "notification.create":
             return v2Result(id: id, self.v2NotificationCreate(params: params))
@@ -6915,6 +6931,224 @@ class TerminalController {
                 "surface_id": panel.id.uuidString,
                 "surface_ref": v2Ref(kind: .surface, uuid: panel.id),
             ])
+        }
+        return result
+    }
+
+    // MARK: - V2 Remote Host Methods (feature 708-remote-workspace-ssh)
+
+    private static func v2HostPayloadStatic(_ host: RemoteHost) -> [String: Any] {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        var result: [String: Any] = [
+            "id": host.id.uuidString,
+            "alias": host.alias,
+            "destination": host.destination,
+            "added_at": formatter.string(from: host.addedAt),
+            "transient": host.transient,
+        ]
+        if let lastConnectedAt = host.lastConnectedAt {
+            result["last_connected_at"] = formatter.string(from: lastConnectedAt)
+        }
+        if let connection = RemoteHostManager.shared.connections[host.id] {
+            switch connection.state {
+            case .disconnected: result["state"] = "disconnected"
+            case .connecting: result["state"] = "connecting"
+            case .connected:
+                result["state"] = "connected"
+                result["open_terminals"] = connection.openTerminalCount
+            case .failed(let reason):
+                result["state"] = "failed"
+                result["error"] = reason
+            }
+        } else {
+            result["state"] = "disconnected"
+        }
+        return result
+    }
+
+    private func v2HostPayload(_ host: RemoteHost) -> [String: Any] {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        var result: [String: Any] = [
+            "id": host.id.uuidString,
+            "alias": host.alias,
+            "destination": host.destination,
+            "added_at": formatter.string(from: host.addedAt),
+            "transient": host.transient,
+        ]
+        if let lastConnectedAt = host.lastConnectedAt {
+            result["last_connected_at"] = formatter.string(from: lastConnectedAt)
+        }
+        // Include current connection state if any.
+        if let connection = RemoteHostManager.shared.connections[host.id] {
+            switch connection.state {
+            case .disconnected: result["state"] = "disconnected"
+            case .connecting: result["state"] = "connecting"
+            case .connected:
+                result["state"] = "connected"
+                result["open_terminals"] = connection.openTerminalCount
+            case .failed(let reason):
+                result["state"] = "failed"
+                result["error"] = reason
+            }
+        } else {
+            result["state"] = "disconnected"
+        }
+        return result
+    }
+
+    private func v2HostList() -> V2CallResult {
+        var payload: [String: Any]?
+        v2MainSync {
+            let hosts = RemoteHostManager.shared.hostsInDisplayOrder
+            payload = [
+                "hosts": hosts.map(v2HostPayload)
+            ]
+        }
+        return payload.map { .ok($0) } ?? .err(code: "internal_error", message: "main sync failed", data: nil)
+    }
+
+    private func v2HostAdd(params: [String: Any]) -> V2CallResult {
+        guard let destination = (params["destination"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !destination.isEmpty else {
+            return .err(code: "invalid_params", message: "Missing or invalid destination", data: nil)
+        }
+        let alias = (params["alias"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let save = (params["save"] as? Bool) ?? true
+
+        var result: V2CallResult = .err(code: "internal_error", message: "add failed", data: nil)
+        v2MainSync {
+            let host = RemoteHostManager.shared.addHost(
+                destination: destination,
+                alias: (alias?.isEmpty == false) ? alias : nil,
+                transient: !save
+            )
+            result = .ok(["host": v2HostPayload(host)])
+        }
+        return result
+    }
+
+    private func v2HostRemove(params: [String: Any]) -> V2CallResult {
+        guard let id = v2UUID(params, "id") else {
+            return .err(code: "invalid_params", message: "Missing or invalid id", data: nil)
+        }
+        var result: V2CallResult = .ok([:])
+        v2MainSync {
+            if RemoteHostManager.shared.hosts[id] == nil {
+                result = .err(code: "not_found", message: "Host not found", data: ["id": id.uuidString])
+                return
+            }
+            RemoteHostManager.shared.removeHost(id: id)
+        }
+        return result
+    }
+
+    private func v2HostConnect(params: [String: Any]) -> V2CallResult {
+        guard let id = v2UUID(params, "id") else {
+            return .err(code: "invalid_params", message: "Missing or invalid id", data: nil)
+        }
+        let semaphore = DispatchSemaphore(value: 0)
+        var result: V2CallResult = .err(code: "internal_error", message: "connect failed", data: nil)
+        v2MainSync {
+            guard let host = RemoteHostManager.shared.hosts[id] else {
+                result = .err(code: "not_found", message: "Host not found", data: ["id": id.uuidString])
+                semaphore.signal()
+                return
+            }
+            RemoteHostManager.shared.connect(id: id) { res in
+                switch res {
+                case .success:
+                    result = .ok(["host": Self.v2HostPayloadStatic(host), "state": "connected"])
+                case .failure(let error):
+                    result = .err(code: "connect_failed", message: error.localizedDescription, data: nil)
+                }
+                semaphore.signal()
+            }
+        }
+        _ = semaphore.wait(timeout: .now() + 30.0)
+        return result
+    }
+
+    private func v2HostDisconnect(params: [String: Any]) -> V2CallResult {
+        guard let id = v2UUID(params, "id") else {
+            return .err(code: "invalid_params", message: "Missing or invalid id", data: nil)
+        }
+        var result: V2CallResult = .ok([:])
+        v2MainSync {
+            if RemoteHostManager.shared.connections[id] == nil {
+                result = .ok([:])
+                return
+            }
+            RemoteHostManager.shared.disconnect(id: id)
+        }
+        return result
+    }
+
+    private func v2HostConnectOrGet(params: [String: Any]) -> V2CallResult {
+        guard let destination = (params["destination"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !destination.isEmpty else {
+            return .err(code: "invalid_params", message: "Missing or invalid destination", data: nil)
+        }
+        let save = (params["save"] as? Bool) ?? false
+        let openTerminal = (params["open_terminal"] as? Bool) ?? false
+
+        let semaphore = DispatchSemaphore(value: 0)
+        var result: V2CallResult = .err(code: "internal_error", message: "findOrCreate failed", data: nil)
+        v2MainSync {
+            let host = RemoteHostManager.shared.findOrCreate(destination: destination, save: save)
+            // Always (re)connect to ensure a live master.
+            RemoteHostManager.shared.connect(id: host.id) { [weak self] res in
+                // This callback runs on the main actor.
+                switch res {
+                case .success:
+                    var payload: [String: Any] = ["host": Self.v2HostPayloadStatic(host)]
+                    if openTerminal, let tm = self?.tabManager,
+                       let surfaceId = tm.openRemoteShell(onHostId: host.id) {
+                        payload["surface_id"] = surfaceId.uuidString
+                        payload["surface_ref"] = self?.v2Ref(kind: .surface, uuid: surfaceId) ?? NSNull()
+                        if let ws = tm.selectedTab {
+                            payload["workspace_id"] = ws.id.uuidString
+                            payload["workspace_ref"] = self?.v2Ref(kind: .workspace, uuid: ws.id) ?? NSNull()
+                        }
+                    }
+                    result = .ok(payload)
+                case .failure(let error):
+                    result = .err(code: "connect_failed", message: error.localizedDescription, data: nil)
+                }
+                semaphore.signal()
+            }
+        }
+        _ = semaphore.wait(timeout: .now() + 30.0)
+        return result
+    }
+
+    private func v2HostShellOpen(params: [String: Any]) -> V2CallResult {
+        guard let id = v2UUID(params, "id") else {
+            return .err(code: "invalid_params", message: "Missing or invalid id", data: nil)
+        }
+        guard let tabManager = v2ResolveTabManager(params: params) else {
+            return .err(code: "unavailable", message: "TabManager not available", data: nil)
+        }
+        var result: V2CallResult = .err(code: "internal_error", message: "shell open failed", data: nil)
+        v2MainSync {
+            guard RemoteHostManager.shared.connections[id] != nil else {
+                result = .err(code: "not_connected", message: "Host is not connected", data: nil)
+                return
+            }
+            guard let surfaceId = tabManager.openRemoteShell(onHostId: id) else {
+                result = .err(code: "not_found", message: "Failed to open shell (no focused pane?)", data: nil)
+                return
+            }
+            var payload: [String: Any] = [
+                "surface_id": surfaceId.uuidString,
+                "surface_ref": v2Ref(kind: .surface, uuid: surfaceId),
+            ]
+            if let ws = tabManager.selectedTab {
+                payload["workspace_id"] = ws.id.uuidString
+                payload["workspace_ref"] = v2Ref(kind: .workspace, uuid: ws.id)
+            }
+            result = .ok(payload)
         }
         return result
     }

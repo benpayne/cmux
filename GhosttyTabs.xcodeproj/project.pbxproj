@@ -154,6 +154,8 @@
 				A5001790 /* TmuxTransport.swift in Sources (CLI) */ = {isa = PBXBuildFile; fileRef = A5001750 /* TmuxTransport.swift */; };
 				A5001780 /* RemoteTmuxSidebarGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5001781 /* RemoteTmuxSidebarGroup.swift */; };
 				A5001782 /* RemoteHostSidebarUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5001783 /* RemoteHostSidebarUI.swift */; };
+				A5001784 /* HostRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5001785 /* HostRegistry.swift */; };
+				A5001786 /* HostRegistryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5001787 /* HostRegistryTests.swift */; };
 		/* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -369,6 +371,8 @@
 				A5001771 /* SSHConfigParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHConfigParserTests.swift; sourceTree = "<group>"; };
 				A5001781 /* RemoteTmuxSidebarGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tmux/Remote/RemoteTmuxSidebarGroup.swift; sourceTree = "<group>"; };
 				A5001783 /* RemoteHostSidebarUI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tmux/Remote/RemoteHostSidebarUI.swift; sourceTree = "<group>"; };
+				A5001785 /* HostRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tmux/Remote/HostRegistry.swift; sourceTree = "<group>"; };
+				A5001787 /* HostRegistryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostRegistryTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -570,6 +574,7 @@
 				A5001758 /* RemoteTmuxTransport.swift */,
 				A5001781 /* RemoteTmuxSidebarGroup.swift */,
 				A5001783 /* RemoteHostSidebarUI.swift */,
+				A5001785 /* HostRegistry.swift */,
 			);
 			path = Sources;
 			sourceTree = "<group>";
@@ -666,6 +671,7 @@
 					A5001720 /* TmuxServiceTests.swift */,
 					A5001770 /* SSHCommandBuilderTests.swift */,
 					A5001771 /* SSHConfigParserTests.swift */,
+					A5001787 /* HostRegistryTests.swift */,
 				);
 				path = cmuxTests;
 				sourceTree = "<group>";
@@ -912,6 +918,7 @@
 			A5001748 /* RemoteTmuxTransport.swift in Sources */,
 			A5001780 /* RemoteTmuxSidebarGroup.swift in Sources */,
 			A5001782 /* RemoteHostSidebarUI.swift in Sources */,
+			A5001784 /* HostRegistry.swift in Sources */,
 		);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -983,6 +990,7 @@
 					A5001721 /* TmuxServiceTests.swift in Sources */,
 					A5001760 /* SSHCommandBuilderTests.swift in Sources */,
 					A5001761 /* SSHConfigParserTests.swift in Sources */,
+					A5001786 /* HostRegistryTests.swift in Sources */,
 				);
 				runOnlyForDeploymentPostprocessing = 0;
 			};
